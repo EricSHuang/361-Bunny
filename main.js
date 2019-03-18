@@ -58,7 +58,6 @@ window.onload = function init(){
 
     //XY mouse movement listeners
     canvas.addEventListener("mousedown", function(event){
-        //gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
         clickedX = event.clientX;
         clickedY = event.clientY;
         //console.log(clickedX + " , " + clickedY);
@@ -69,8 +68,8 @@ window.onload = function init(){
         switch(mouseButton){
             case 1: //left mouse button (xy translation)
                 //XYTranslationMatrix() pops the previous XYtranslation matrix
-                //on each mouse move. But it has nothing to pop on initial move,
-                //so identity is fluff so its inital pop doesn't effect CTM.
+                //on each mouse move. But it has nothing to pop on initial move.
+                //identity is fluff so its inital pop doesn't effect CTM.
                 stack.push(identity);
                 window.addEventListener("mousemove", XYTranslationMatrix);
                 break;
@@ -110,15 +109,18 @@ function render() {
     var theta = 0.0;
     var phi = 0.0;
     var fovy = 45.0;
-
+/*
     eye = vec3(radius * Math.sin(theta) * Math.cos(phi),
                 radius * Math.sin(theta) * Math.sin(phi),
                 radius * Math.cos(theta));
+*/
+    eye = vec3(0, 0, 10);
     modelViewMatrix = lookAt(eye, at, up);
     projectionMatrix = perspective(fovy, aspect, near, far);
 
     for(var i = 0; i < stack.length; i++){
-        modelViewMatrix = mult(stack[i] , modelViewMatrix);
+        //IMPORTANT THIS LINE CHANGE FIXES IT
+        modelViewMatrix = mult(modelViewMatrix, stack[i]);
     }
 
     gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix));

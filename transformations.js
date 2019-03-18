@@ -15,11 +15,3 @@ function identity4(){
     identityMatrix[3][3] = 1;
     return identityMatrix;
 }
-
-/*
-//THis function is useless (I think)
-function backwardZTrans(){
-    var translateMatrix = translate(0.0, 0.0, -1.0);
-    stack.push(translateMatrix);
-}
-*/
