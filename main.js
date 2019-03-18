@@ -12,6 +12,10 @@ const up = vec3(0.0, 1.0, 0.0);
 var aspect; //viewport aspect ratio
 var modelView, projection;
 
+var stack = [];
+var mouseIsDown = false;
+var clickedX, clickedY;
+
 window.onload = function init(){
     canvas = document.getElementById("gl-canvas");
 
@@ -49,6 +53,41 @@ window.onload = function init(){
 
     modelViewLocation = gl.getUniformLocation(program, "modelViewMatrix");
     projectionLocation = gl.getUniformLocation(program, "projectionMatrix");
+
+
+    //Bunny X,Y,Z Translation Event Listeners
+
+    //XY mouse movement listeners
+    canvas.addEventListener("mousedown", function(event){
+        //gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+        mouseIsDown = true;
+        clickedX = event.clientX;
+        clickedY = event.clientY;
+        console.log(clickedX + " , " + clickedY);
+        document.getElementById("mouseClickStatus").innerHTML = "clicked!";
+
+        //XYTranslationMatrix() pops the previous XYtranslation matrix
+        //on each mouse move. But it has nothing to pop on initial move,
+        //so identity is fluff so its inital pop doesn't effect CTM.
+        var identity = identity4();
+        stack.push(identity);
+        window.addEventListener("mousemove", XYTranslationMatrix);
+    })
+    window.addEventListener("mouseup", function(event){
+        /*
+        mouseIsDown = false;
+        console.log("mouseup now");
+        document.getElementById("mouseClickStatus").innerHTML = "not clicked";
+        */
+        window.removeEventListener("mousemove", XYTranslationMatrix);
+    })
+
+    //Z-movement event listener (up/down arrow keys)
+    window.addEventListener("keydown", keyCommands);
+
+
+
+
     render();
 }
 
@@ -68,11 +107,26 @@ function render() {
     modelViewMatrix = lookAt(eye, at, up);
     projectionMatrix = perspective(fovy, aspect, near, far);
 
+/*
+    if (mouseIsDown){
+        window.addEventListener("mousemove", XYTranslationMatrix);
+
+        //document.getElementById("gl-canvas").onmousemove = function(event){
+        //    XYTranslationMatrix(event)};
+        //console.log("yy");
+
+    }
+*/
+
+    for(var i = 0; i < stack.length; i++){
+        modelViewMatrix = mult(stack[i] , modelViewMatrix);
+    }
+
     gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix));
     gl.uniformMatrix4fv(projectionLocation, false, flatten(projectionMatrix));
 
     gl.drawArrays(gl.TRIANGLES, 0, numFaces*3);
-    //requestAnimFrame(render);
+    requestAnimFrame(render);
 }
 
 function drawBunny(){
@@ -96,5 +150,36 @@ function drawBunny(){
         colors.push(tempBlueColor);
         points.push(v3);
         colors.push(tempBlueColor);
+    }
+}
+
+function XYTranslationMatrix(event){
+    var minimizer = 0.01;   //slows down the translation to suit mouse movement
+    var currentX = event.clientX;
+    var currentY = event.clientY;
+    var xTranslation = (currentX - clickedX) * minimizer;
+    var yTranslation = (currentY - clickedY) * minimizer;
+
+    var translationMatrix = translate(xTranslation, -yTranslation, 0.0);
+    stack.pop();
+    stack.push(translationMatrix);
+    //return translationMatrix;
+}
+
+function keyCommands(key){
+    switch(key.keyCode){
+        case 38:    //up arrow key: translate bunny away from camera on z-axis
+            var translateMatrix = translate(0.0, 0.0, -1.0);
+            stack.push(translateMatrix);
+            break;
+
+        case 40:    //down arrow key: translate bunny towards camera on z-axis
+            var translateMatrix = translate(0.0, 0.0, 1.0);
+            stack.push(translateMatrix);
+            break;
+
+        default:
+            console.log("Dev Note: This button has not been mapped.");
+            break;
     }
 }

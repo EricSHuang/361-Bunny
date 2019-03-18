@@ -6,3 +6,20 @@ function vec3ToVec4(given){
     //console.log(v4);
     return v4;
 }
+
+function identity4(){
+    var identityMatrix = mat4();
+    identityMatrix[0][0] = 1;
+    identityMatrix[1][1] = 1;
+    identityMatrix[2][2] = 1;
+    identityMatrix[3][3] = 1;
+    return identityMatrix;
+}
+
+/*
+//THis function is useless (I think)
+function backwardZTrans(){
+    var translateMatrix = translate(0.0, 0.0, -1.0);
+    stack.push(translateMatrix);
+}
+*/
