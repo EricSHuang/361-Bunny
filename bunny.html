@@ -21,6 +21,7 @@
     <script id="fragment-shader" type="x-shader/x-vertex">
         precision mediump float;
         varying vec4 fColor;
+        //uniform vec4 fColor;    //used for lightTest.js
 
         void main(){
             gl_FragColor = fColor;
@@ -31,6 +32,10 @@
     <script type="text/javascript" src="MV.js"></script>
     <script type="text/javascript" src="webgl-utils.js"></script>
 
+<!--
+    <script type="text/javascript" src="lightTest.js"></script>
+
+-->
     <script type="text/javascript" src="main.js"></script>
     <script type="text/javascript" src="bunny.js"></script>
     <script type="text/javascript" src="transformations.js"></script>
