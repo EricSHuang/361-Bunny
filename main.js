@@ -13,6 +13,10 @@ var aspect; //viewport aspect ratio
 var modelView, projection;
 
 var stack = [];
+
+var rotationStack = [];
+var translationStack = [];
+
 var clickedX, clickedY;
 
 window.onload = function init(){
@@ -58,7 +62,6 @@ window.onload = function init(){
 
     //XY mouse movement listeners
     canvas.addEventListener("mousedown", function(event){
-        //gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
         clickedX = event.clientX;
         clickedY = event.clientY;
         //console.log(clickedX + " , " + clickedY);
@@ -69,16 +72,19 @@ window.onload = function init(){
         switch(mouseButton){
             case 1: //left mouse button (xy translation)
                 //XYTranslationMatrix() pops the previous XYtranslation matrix
-                //on each mouse move. But it has nothing to pop on initial move,
-                //so identity is fluff so its inital pop doesn't effect CTM.
-                stack.push(identity);
+                //on each mouse move. But it has nothing to pop on initial move.
+                //identity is fluff so its inital pop doesn't effect CTM.
+                //stack.push(identity);
+                translationStack.push(identity);
                 window.addEventListener("mousemove", XYTranslationMatrix);
                 break;
 
             case 3: //right mouse button (rotations)
                 //2 matrices for rotate so double the fluff
-                stack.push(identity);
-                stack.push(identity);
+                //stack.push(identity);
+                //stack.push(identity);
+                rotationStack.push(identity);
+                rotationStack.push(identity);
                 window.addEventListener("mousemove", rotationMatrix);
                 break;
 
@@ -114,11 +120,22 @@ function render() {
     eye = vec3(radius * Math.sin(theta) * Math.cos(phi),
                 radius * Math.sin(theta) * Math.sin(phi),
                 radius * Math.cos(theta));
+
+//    eye = vec3(0, 0, 10);
     modelViewMatrix = lookAt(eye, at, up);
     projectionMatrix = perspective(fovy, aspect, near, far);
 
+/*
     for(var i = 0; i < stack.length; i++){
-        modelViewMatrix = mult(stack[i] , modelViewMatrix);
+        //IMPORTANT THIS LINE CHANGE FIXES IT
+        modelViewMatrix = mult(modelViewMatrix, stack[i]);
+    }
+*/
+    for(var i = 0; i < translationStack.length; i++){
+        modelViewMatrix = mult(modelViewMatrix, translationStack[i]);
+    }
+    for(var i = 0; i < rotationStack.length; i++){
+        modelViewMatrix = mult(modelViewMatrix, rotationStack[i]);
     }
 
     gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix));
@@ -160,13 +177,17 @@ function XYTranslationMatrix(event){
     var yTranslation = (currentY - clickedY) * minimizer;
 
     var translationMatrix = translate(xTranslation, -yTranslation, 0.0);
+/*
     stack.pop();
     stack.push(translationMatrix);
+*/
+    translationStack.pop();
+    translationStack.push(translationMatrix);
     //return translationMatrix;
 }
 
 function rotationMatrix(event){
-    var minimizer = 0.05;
+    var minimizer = 0.1;
     var currentX = event.clientX;
     var currentY = event.clientY;
     //Translation as in mouse movement from clicked point (not bunny translation)
@@ -174,35 +195,49 @@ function rotationMatrix(event){
     var yTranslation = (currentY - clickedY) * minimizer;
 
     //Pop off the previous 2 rotation matrices
-    stack.pop();
-    stack.pop();
+    //stack.pop();
+    //stack.pop();
+    rotationStack.pop();
+    rotationStack.pop();
 
     //Rotation about y-axis = left-right mouse movement
     var yAxis = vec3(0.0, 1.0, 0.0);
     var yRotationMatrix = rotate(xTranslation, yAxis);
-    stack.push(yRotationMatrix);
+    //stack.push(yRotationMatrix);
+    rotationStack.push(yRotationMatrix);
 
     //Rotation about x-axis = up-down mouse movement
     var xAxis = vec3(1.0, 0.0, 0.0);
     var xRotationMatrix = rotate(yTranslation, xAxis);
-    stack.push(xRotationMatrix);
+    //stack.push(xRotationMatrix);
+    rotationStack.push(xRotationMatrix);
 }
 
 function keyCommands(key){
     switch(key.keyCode){
         case 38:    //up arrow key: translate bunny away from camera on z-axis
             var translateMatrix = translate(0.0, 0.0, -1.0);
-            stack.push(translateMatrix);
+            //stack.push(translateMatrix);
+            translationStack.push(translateMatrix);
             break;
 
         case 40:    //down arrow key: translate bunny towards camera on z-axis
             var translateMatrix = translate(0.0, 0.0, 1.0);
-            stack.push(translateMatrix);
+            //stack.push(translateMatrix);
+            translationStack.push(translateMatrix);
             break;
 
         case 82:    //"r" resets the bunny's location and orientation
+/*
             while(stack.length != 0){
                 stack.pop();
+            }
+*/
+            while(rotationStack.length != 0){
+                rotationStack.pop();
+            }
+            while(translationStack.length != 0){
+                translationStack.pop();
             }
             break;
 
