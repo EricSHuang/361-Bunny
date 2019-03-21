@@ -67,6 +67,6 @@ function wireFrameCubeLines(){
     points.push(vertices[4]);
     points.push(vertices[7]);
 
-    console.log(points.length);
+    //console.log(points.length);
     return points;
 }
