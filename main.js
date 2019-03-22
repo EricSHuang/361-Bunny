@@ -4,6 +4,7 @@ var program;
 
 var points = [];
 var colors = [];
+var normals = [];
 var numFaces;
 
 var eye;
@@ -12,16 +13,14 @@ const up = vec3(0.0, 1.0, 0.0);
 var aspect; //viewport aspect ratio
 var modelView, projection;
 
-var stack = [];
-
 var rotationStack = [];
 var translationStack = [];
 
 var clickedX, clickedY;
 
-/*
-//lighting work
-var lightPosition = vec4(1.0, 1.0, 1.0, 0.0 );
+
+//lighting
+var lightPosition = vec4(-5.0, -5.0, -5.0, 0.0 );
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0 );
 var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
 var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
@@ -30,8 +29,6 @@ var materialAmbient = vec4( 1.0, 0.0, 1.0, 1.0 );
 var materialDiffuse = vec4( 1.0, 0.8, 0.0, 1.0 );
 var materialSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
 var materialShininess = 20.0;
-*/
-
 
 
 window.onload = function init(){
@@ -52,18 +49,6 @@ window.onload = function init(){
     //Shaders and attribute buffers
     program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
-
-/*
-    //lighting
-    var ambientProduct = mult(lightAmbient, materialAmbient);
-    var diffuseProduct = mult(lightDiffuse, materialDiffuse);
-    var specularProduct = mult(lightSpecular, materialSpecular);
-
-    //lighting
-    var vNormal = gl.getAttribLocation(program, "vNormal");
-    gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vNormal);
-*/
 /*
     //step abc stuff
     var cBuffer = gl.createBuffer();
@@ -75,8 +60,18 @@ window.onload = function init(){
     gl.enableVertexAttribArray(vColor);
 */
 
+    //lighting v3
+    var ambientProduct = mult(lightAmbient, materialAmbient);
+    var diffuseProduct = mult(lightDiffuse, materialDiffuse);
+    var specularProduct = mult(lightSpecular, materialSpecular);
 
+    var nBuffer = gl.createBuffer();
+    gl.bindBuffer( gl.ARRAY_BUFFER, nBuffer);
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(normals), gl.STATIC_DRAW );
 
+    var vNormal = gl.getAttribLocation( program, "vNormal" );
+    gl.vertexAttribPointer( vNormal, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vNormal);
 
 
 
@@ -88,42 +83,48 @@ window.onload = function init(){
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
+/*
+    //mozilla lighting
+    var aNormalLocation = gl.getAttribLocation(program, "aNormal");
+    gl.bindBuffer(gl.ARRAY_BUFFER, aNormalLocation);
+    gl.vertexAttribPointer(aNormalLocation, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aNormalLocation);
+*/
+
     modelViewLocation = gl.getUniformLocation(program, "modelViewMatrix");
     projectionLocation = gl.getUniformLocation(program, "projectionMatrix");
+    normalMatrixLocation = gl.getUniformLocation(program, "normalMatrix");
+
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "ambientProduct"),flatten(ambientProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "diffuseProduct"),flatten(diffuseProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "specularProduct"),flatten(specularProduct) );
+    gl.uniform4fv( gl.getUniformLocation(program,
+       "lightPosition"),flatten(lightPosition) );
+    gl.uniform1f( gl.getUniformLocation(program,
+       "shininess"),materialShininess );
 
 
+/*
+    //mozilla lighting
+    normalMatrixLocation = gl.getUniformLocation(program, "uNormalMatrix");
+    const normalMatrix = mat4();
+    mat4.invert(normalMatrix, modelViewMatrix);
+    mat4.transpose(normalMatrix, normalMatrix);
 
     //lighting 2
-    var aNormalLocation = gl.getAttribLocation(program, "aNormal");
-    gl.enableVertexAttribArray(aNormalLocation);
-    gl.vertexAttribPointer(aNormalLocation, 3, gl.FLOAT, false, 0, 0);
-
-    var colorLocation = gl.getUniformLocation(program, "uColor");
-    gl.uniform4fv(colorLocation, [0.2, 1, 0.2, 1]);    //green
-    var lightPositionLocation = gl.getUniformLocation(program, "lightPosition")
-    gl.uniform3fv(lightPositionLocation, [5, 5 ,0]);
-
     var normalBuffer = gl.createBuffer();
     var normals = bunnyNormals();
     gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
-
-
-
-/*
-    //lighting
-    normalMatrixLocation = gl.getUniformLocation(program, "normalMatrix");
-
-    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
-    gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
+    gl.vertexAttribPointer(3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(normalBuffer);
 */
 
-
     //Translation and Rotation Event Listeners
-    //Mouse movement Evemt listeners
+    //Mouse movement Event listeners
     canvas.addEventListener("mousedown", function(event){
         clickedX = event.clientX;
         clickedY = event.clientY;
@@ -137,15 +138,12 @@ window.onload = function init(){
                 //XYTranslationMatrix() pops the previous XYtranslation matrix
                 //on each mouse move. But it has nothing to pop on initial move.
                 //identity is fluff so its inital pop doesn't effect CTM.
-                //stack.push(identity);
                 translationStack.push(identity);
                 window.addEventListener("mousemove", XYTranslationMatrix);
                 break;
 
             case 3: //right mouse button (rotations)
                 //2 matrices for rotate so double the fluff
-                //stack.push(identity);
-                //stack.push(identity);
                 rotationStack.push(identity);
                 rotationStack.push(identity);
                 window.addEventListener("mousemove", rotationMatrix);
@@ -188,23 +186,6 @@ function render() {
     modelViewMatrix = lookAt(eye, at, up);
     projectionMatrix = perspective(fovy, aspect, near, far);
 
-/*
-    //lighting
-    normalMatrix = [
-        vec3(modelViewMatrix[0][0], modelViewMatrix[0][1], modelViewMatrix[0][2]),
-        vec3(modelViewMatrix[1][0], modelViewMatrix[1][1], modelViewMatrix[1][2]),
-        vec3(modelViewMatrix[2][0], modelViewMatrix[2][1], modelViewMatrix[2][2]),
-    ]
-*/
-
-
-
-/*
-    for(var i = 0; i < stack.length; i++){
-        //IMPORTANT THIS LINE CHANGE FIXES IT
-        modelViewMatrix = mult(modelViewMatrix, stack[i]);
-    }
-*/
     for(var i = 0; i < translationStack.length; i++){
         modelViewMatrix = mult(modelViewMatrix, translationStack[i]);
     }
@@ -212,10 +193,19 @@ function render() {
         modelViewMatrix = mult(modelViewMatrix, rotationStack[i]);
     }
 
-//lighting
-//    gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix));
-//    gl.uniformMatrix4fv(projectionLocation, false, flatten(projectionMatrix));
-//    gl.uniformMatrix3fv(normalMatrixLocation, false, flatten(normalMatrix));
+    //lighting v3
+    normalMatrix = [
+        vec3(modelViewMatrix[0][0], modelViewMatrix[0][1], modelViewMatrix[0][2]),
+        vec3(modelViewMatrix[1][0], modelViewMatrix[1][1], modelViewMatrix[1][2]),
+        vec3(modelViewMatrix[2][0], modelViewMatrix[2][1], modelViewMatrix[2][2])
+    ];
+    gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix) );
+    gl.uniformMatrix4fv(projectionLocation, false, flatten(projectionMatrix) );
+    gl.uniformMatrix3fv(normalMatrixLocation, false, flatten(normalMatrix) );
+
+
+
+
 
     gl.drawArrays(gl.TRIANGLES, 0, numFaces*3);
     requestAnimFrame(render);
@@ -235,17 +225,25 @@ function drawBunny(){
         var v1 = vec3ToVec4( vertices[v1Index] );
         var v2 = vec3ToVec4( vertices[v2Index] );
         var v3 = vec3ToVec4( vertices[v3Index] );
-
         points.push(v1);
-        colors.push(tempBlueColor);
         points.push(v2);
-        colors.push(tempBlueColor);
         points.push(v3);
-        colors.push(tempBlueColor);
+
+        var t1 = subtract(v2, v1);
+        var t2 = subtract(v3, v1);
+        var normal = normalize(cross(t2, t1));
+        normal = vec4(normal);
+        normal[3] = 0.0;
+        normals.push(normal);
+        normals.push(normal);
+        normals.push(normal);
     }
+    console.log(points.length);
+    console.log(normals.length);
 }
 
-
+/*
+//normals now calcualted within drawBunny()
 function bunnyNormals(){
     var vertices = get_vertices();
     var faces = get_faces();
@@ -278,6 +276,7 @@ function bunnyNormals(){
     console.log(normals.length);
     return normals;
 }
+*/
 
 function XYTranslationMatrix(event){
     var minimizer = 0.01;   //slows down translation speed to suit mouse movement
@@ -287,13 +286,8 @@ function XYTranslationMatrix(event){
     var yTranslation = (currentY - clickedY) * minimizer;
 
     var translationMatrix = translate(xTranslation, -yTranslation, 0.0);
-/*
-    stack.pop();
-    stack.push(translationMatrix);
-*/
     translationStack.pop();
     translationStack.push(translationMatrix);
-    //return translationMatrix;
 }
 
 function rotationMatrix(event){
@@ -305,21 +299,17 @@ function rotationMatrix(event){
     var yTranslation = (currentY - clickedY) * minimizer;
 
     //Pop off the previous 2 rotation matrices
-    //stack.pop();
-    //stack.pop();
     rotationStack.pop();
     rotationStack.pop();
 
     //Rotation about y-axis = left-right mouse movement
     var yAxis = vec3(0.0, 1.0, 0.0);
     var yRotationMatrix = rotate(xTranslation, yAxis);
-    //stack.push(yRotationMatrix);
     rotationStack.push(yRotationMatrix);
 
     //Rotation about x-axis = up-down mouse movement
     var xAxis = vec3(1.0, 0.0, 0.0);
     var xRotationMatrix = rotate(yTranslation, xAxis);
-    //stack.push(xRotationMatrix);
     rotationStack.push(xRotationMatrix);
 }
 
@@ -327,22 +317,15 @@ function keyCommands(key){
     switch(key.keyCode){
         case 38:    //up arrow key: translate bunny away from camera on z-axis
             var translateMatrix = translate(0.0, 0.0, -1.0);
-            //stack.push(translateMatrix);
             translationStack.push(translateMatrix);
             break;
 
         case 40:    //down arrow key: translate bunny towards camera on z-axis
             var translateMatrix = translate(0.0, 0.0, 1.0);
-            //stack.push(translateMatrix);
             translationStack.push(translateMatrix);
             break;
 
         case 82:    //"r" resets the bunny's location and orientation
-/*
-            while(stack.length != 0){
-                stack.pop();
-            }
-*/
             while(rotationStack.length != 0){
                 rotationStack.pop();
             }

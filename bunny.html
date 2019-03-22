@@ -30,66 +30,105 @@
         }
     </script>
 
--->
-
+//broken v2
     <script id="vertex-shader" type="x-shader/x-vertex">
         attribute vec4 vPosition;
+        attribute vec4 vColor;
         attribute vec3 aNormal;
 
-        uniform vec3 lightPosition;
-        //these 2 are my version of the matrix
-        //they replace the 3 world vars *********************************
+        uniform mat4 uNormalMatrix;
         uniform mat4 modelViewMatrix;
         uniform mat4 projectionMatrix;
 
-        varying vec3 vNormal;
-        varying vec3 surfaceToLight;
-
+        varying highp vec3 vLighting;
+        varying vec4 fColor;
         void main(){
+            fColor = vColor;
             gl_Position = projectionMatrix * modelViewMatrix * vPosition;
 
-            //orient normals and pass to fragment Shader
-        /*    mat3 projectionMatrix3x3 = mat3(
-                vec3[projectionMatrix[0][0], projectionMatrix[0][1], projectionMatrix[0][2]],
-                vec3[projectionMatrix[1][0], projectionMatrix[1][1], projectionMatrix[1][2]],
-                vec3[projectionMatrix[2][0], projectionMatrix[2][1], projectionMatrix[2][2]]
-            );
+            //Lighting effect
+            highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+            highp vec3 directionalLightColor = vec3(1, 1, 1);
+            highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
 
-            vNormal = projectionMatrix3x3 * aNormal;
-        */
-            vNormal = mat3(projectionMatrix) * aNormal;
-            //compute world position of surface
-            vec3 surfaceWorldPosition = (projectionMatrix * vPosition).xyz;
-            //compute vector of surface to the light and pass it to fragment shader
-            surfaceToLight = lightPosition - surfaceWorldPosition;
+            highp vec4 transformedNormal = uNormalMatrix * vec4(aNormal, 1.0);
+
+            highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+            vLighting = ambientLight + (directionalLightColor * directional);
         }
+
     </script>
 
     <script id="fragment-shader" type="x-shader/x-vertex">
         precision mediump float;
-
-        varying vec3 vNormal;
-        varying vec3 surfaceToLight;
-        uniform vec4 uColor;
+        varying vec4 fColor;
+        varying highp vec3 vLighting;
 
         void main(){
-            vec3 normal = normalize(vNormal);
-            vec3 surfaceToLightDirection = normalize(surfaceToLight);
-
-            float light = dot(normal, surfaceToLightDirection);
-            gl_FragColor = uColor;
-            gl_FragColor.rgb *= light;
+            gl_FragColor = vec4(fColor.rgb * vLighting, 1.0);
         }
     </script>
+-->
+
+<!-- vShader and fShader v3 (based on shadedSphere4.html) -->
+<script id="vertex-shader" type="x-shader/x-vertex">
+    attribute vec4 vPosition;
+    attribute vec4 vNormal;
+    varying vec3 N, L, E;
+
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+
+    uniform vec4 lightPosition;
+    uniform mat3 normalMatrix;
+    void main(){
+        vec3 light;
+        vec3 pos = (modelViewMatrix * vPosition).xyz;
+        if(lightPosition.z == 0.0){
+            L = normalize(lightPosition.xyz);
+        }
+        else{
+            L = normalize(lightPosition).xyz - pos;
+        }
+        E = -normalize(pos);
+        N = normalize( normalMatrix * vNormal.xyz);
+
+        gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+    }
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform vec4 ambientProduct;
+    uniform vec4 diffuseProduct;
+    uniform vec4 specularColor;
+    uniform float shiniess;
+    varying vec3 N, L, E;
+
+    void main(){
+        vec4 fColor;
+        vec3 H = normalize(L + E);
+
+        vec4 ambient = ambientProduct;
+
+        float Kd = max(dot(L, N), 0.0);
+        vec4 diffuse = Kd * diffuseProduct;
+
+        float Ks = pow(max(dot(N,H), 0.0), shiniess);
+        vec4 specular = vec4(0.0, 0.0, 0.0, 0.0);
+
+        fColor = ambient + diffuse + specular;
+        fColor.a = 1.0;
+        gl_FragColor = fColor;
+    }
+</script>
 
     <script type="text/javascript" src="initShaders.js"></script>
     <script type="text/javascript" src="MV.js"></script>
     <script type="text/javascript" src="webgl-utils.js"></script>
 
-<!--
-    <script type="text/javascript" src="lightTest.js"></script>
 
--->
     <script type="text/javascript" src="main.js"></script>
     <script type="text/javascript" src="bunny.js"></script>
     <script type="text/javascript" src="transformations.js"></script>
