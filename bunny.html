@@ -2,59 +2,71 @@
 <meta charset="utf-8"/>
 
 <html>
-<head>
-    <script id="vertex-shader" type="x-shader/x-vertex">
-        attribute vec4 vPosition;
-        attribute vec4 vColor;
-        varying vec4 fColor;
+    <head>
+        <script id="vertex-shader" type="x-shader/x-vertex">
+            attribute vec4 vPosition;
+            attribute vec4 vNormal;
+            varying vec3 N, L, E;
 
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
 
-        void main(){
-            fColor = vColor;
-            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
-            //gl_Position.z = -gl_Position.z;
-        }
-    </script>
+            uniform vec4 lightPosition;
+            uniform mat3 normalMatrix;
+            void main(){
+                vec3 light;
+                vec3 pos = (modelViewMatrix * vPosition).xyz;
+                L = normalize(lightPosition.xyz);
+                E = -normalize(pos);
+                N = normalize( normalMatrix * vNormal.xyz);
 
-    <script id="fragment-shader" type="x-shader/x-vertex">
-        precision mediump float;
-        varying vec4 fColor;
-        //uniform vec4 fColor;    //used for lightTest.js
+                gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+            }
+        </script>
 
-        void main(){
-            gl_FragColor = fColor;
-        }
-    </script>
+        <script id="fragment-shader" type="x-shader/x-fragment">
+            precision mediump float;
 
-    <script type="text/javascript" src="initShaders.js"></script>
-    <script type="text/javascript" src="MV.js"></script>
-    <script type="text/javascript" src="webgl-utils.js"></script>
+            uniform vec4 ambientProduct;
+            uniform vec4 diffuseProduct;
+            uniform vec4 specularProduct;
+            uniform float shiniess;
+            varying vec3 N, L, E;
 
-<!--
-    <script type="text/javascript" src="lightTest.js"></script>
+            void main(){
+                vec4 fColor;
+                vec3 H = normalize(L + E);
 
--->
-    <script type="text/javascript" src="main.js"></script>
-    <script type="text/javascript" src="bunny.js"></script>
-    <script type="text/javascript" src="transformations.js"></script>
-</head>
+                vec4 ambient = ambientProduct;
+
+                float Kd = max(dot(L, N), 0.0);
+                vec4 diffuse = Kd * diffuseProduct;
+
+                float Ks = pow(max(dot(N,H), 0.0), shiniess);
+                vec4 specular = Ks * specularProduct;
+
+                //adding specular to fColor breaks lighting?
+                //fColor = ambient + diffuse + specular;
+                fColor = ambient + diffuse;
+                fColor.a = 1.0;
+                gl_FragColor = fColor;
+            }
+        </script>
+
+        <script type="text/javascript" src="initShaders.js"></script>
+        <script type="text/javascript" src="MV.js"></script>
+        <script type="text/javascript" src="webgl-utils.js"></script>
+
+
+        <script type="text/javascript" src="main.js"></script>
+        <script type="text/javascript" src="bunny.js"></script>
+        <script type="text/javascript" src="helperFunctions.js"></script>
+    </head>
 <body>
-    <canvas id="gl-canvas"
-        width="600" height="600"
-        onmousemove="mouseMovementTest(event)">
-    </canvas>
-
+    <canvas id="gl-canvas" width="600" height="600"></canvas>
+<!-- debuggers
     <p id="mouseCoord"></p>
     <p id="mouseClickStatus"></p>
-    <script>
-        function mouseMovementTest(e){
-            var x = e.clientX;
-            var y = e.clientY;
-            var coord = "Coordinates: (" + x + ", " + y + ")";
-            document.getElementById("mouseCoord").innerHTML = coord;
-        }
-    </script>
+-->
 </body>
 </html>
