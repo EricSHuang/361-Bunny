@@ -16,6 +16,7 @@ function identity4(){
     return identityMatrix;
 }
 
+
 //used in the point camera
 function wireFrameCubeLines(){
     var vertices = [

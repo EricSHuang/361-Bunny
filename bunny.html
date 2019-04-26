@@ -2,152 +2,71 @@
 <meta charset="utf-8"/>
 
 <html>
-<head>
-<!--
-    <script id="vertex-shader" type="x-shader/x-vertex">
-    //old step ABC vShader
-        attribute vec4 vPosition;
-        attribute vec4 vColor;
-        varying vec4 fColor;
+    <head>
+        <script id="vertex-shader" type="x-shader/x-vertex">
+            attribute vec4 vPosition;
+            attribute vec4 vNormal;
+            varying vec3 N, L, E;
 
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
 
-        void main(){
-            fColor = vColor;
-            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
-            //gl_Position.z = -gl_Position.z;
-        }
-    </script>
-    <script id="fragment-shader" type="x-shader/x-vertex">
-    //old STEP ABC fragment shader
-        precision mediump float;
-        varying vec4 fColor;
-        //uniform vec4 fColor;    //used for lightTest.js
+            uniform vec4 lightPosition;
+            uniform mat3 normalMatrix;
+            void main(){
+                vec3 light;
+                vec3 pos = (modelViewMatrix * vPosition).xyz;
+                L = normalize(lightPosition.xyz);
+                E = -normalize(pos);
+                N = normalize( normalMatrix * vNormal.xyz);
 
-        void main(){
-            gl_FragColor = fColor;
-        }
-    </script>
+                gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+            }
+        </script>
 
-//broken v2
-    <script id="vertex-shader" type="x-shader/x-vertex">
-        attribute vec4 vPosition;
-        attribute vec4 vColor;
-        attribute vec3 aNormal;
+        <script id="fragment-shader" type="x-shader/x-fragment">
+            precision mediump float;
 
-        uniform mat4 uNormalMatrix;
-        uniform mat4 modelViewMatrix;
-        uniform mat4 projectionMatrix;
+            uniform vec4 ambientProduct;
+            uniform vec4 diffuseProduct;
+            uniform vec4 specularProduct;
+            uniform float shiniess;
+            varying vec3 N, L, E;
 
-        varying highp vec3 vLighting;
-        varying vec4 fColor;
-        void main(){
-            fColor = vColor;
-            gl_Position = projectionMatrix * modelViewMatrix * vPosition;
+            void main(){
+                vec4 fColor;
+                vec3 H = normalize(L + E);
 
-            //Lighting effect
-            highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
-            highp vec3 directionalLightColor = vec3(1, 1, 1);
-            highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
+                vec4 ambient = ambientProduct;
 
-            highp vec4 transformedNormal = uNormalMatrix * vec4(aNormal, 1.0);
+                float Kd = max(dot(L, N), 0.0);
+                vec4 diffuse = Kd * diffuseProduct;
 
-            highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-            vLighting = ambientLight + (directionalLightColor * directional);
-        }
+                float Ks = pow(max(dot(N,H), 0.0), shiniess);
+                vec4 specular = Ks * specularProduct;
 
-    </script>
+                //adding specular to fColor breaks lighting?
+                //fColor = ambient + diffuse + specular;
+                fColor = ambient + diffuse;
+                fColor.a = 1.0;
+                gl_FragColor = fColor;
+            }
+        </script>
 
-    <script id="fragment-shader" type="x-shader/x-vertex">
-        precision mediump float;
-        varying vec4 fColor;
-        varying highp vec3 vLighting;
-
-        void main(){
-            gl_FragColor = vec4(fColor.rgb * vLighting, 1.0);
-        }
-    </script>
--->
-
-<!-- vShader and fShader v3 (based on shadedSphere4.html) -->
-<script id="vertex-shader" type="x-shader/x-vertex">
-    attribute vec4 vPosition;
-    attribute vec4 vNormal;
-    varying vec3 N, L, E;
-
-    uniform mat4 modelViewMatrix;
-    uniform mat4 projectionMatrix;
-
-    uniform vec4 lightPosition;
-    uniform mat3 normalMatrix;
-    void main(){
-        vec3 light;
-        vec3 pos = (modelViewMatrix * vPosition).xyz;
-        if(lightPosition.z == 0.0){
-            L = normalize(lightPosition.xyz);
-        }
-        else{
-            L = normalize(lightPosition).xyz - pos;
-        }
-        E = -normalize(pos);
-        N = normalize( normalMatrix * vNormal.xyz);
-
-        gl_Position = projectionMatrix * modelViewMatrix * vPosition;
-    }
-</script>
-
-<script id="fragment-shader" type="x-shader/x-fragment">
-    precision mediump float;
-
-    uniform vec4 ambientProduct;
-    uniform vec4 diffuseProduct;
-    uniform vec4 specularColor;
-    uniform float shiniess;
-    varying vec3 N, L, E;
-
-    void main(){
-        vec4 fColor;
-        vec3 H = normalize(L + E);
-
-        vec4 ambient = ambientProduct;
-
-        float Kd = max(dot(L, N), 0.0);
-        vec4 diffuse = Kd * diffuseProduct;
-
-        float Ks = pow(max(dot(N,H), 0.0), shiniess);
-        vec4 specular = vec4(0.0, 0.0, 0.0, 0.0);
-
-        fColor = ambient + diffuse + specular;
-        fColor.a = 1.0;
-        gl_FragColor = fColor;
-    }
-</script>
-
-    <script type="text/javascript" src="initShaders.js"></script>
-    <script type="text/javascript" src="MV.js"></script>
-    <script type="text/javascript" src="webgl-utils.js"></script>
+        <script type="text/javascript" src="initShaders.js"></script>
+        <script type="text/javascript" src="MV.js"></script>
+        <script type="text/javascript" src="webgl-utils.js"></script>
 
 
-    <script type="text/javascript" src="main.js"></script>
-    <script type="text/javascript" src="bunny.js"></script>
-    <script type="text/javascript" src="transformations.js"></script>
-</head>
+        <script type="text/javascript" src="main.js"></script>
+        <script type="text/javascript" src="bunny.js"></script>
+        <script type="text/javascript" src="helperFunctions.js"></script>
+    </head>
 <body>
-    <canvas id="gl-canvas"
-        width="600" height="600"
-        onmousemove="mouseMovementTest(event)">
-    </canvas>
-
+    <canvas id="gl-canvas" width="600" height="600"></canvas>
+<!-- debuggers
     <p id="mouseCoord"></p>
     <p id="mouseClickStatus"></p>
-    <script>
-        function mouseMovementTest(e){
-            var x = e.clientX;
-            var y = e.clientY;
-            var coord = "Coordinates: (" + x + ", " + y + ")";
-            document.getElementById("mouseCoord").innerHTML = coord;
-        }
-    </script>
+-->
 </body>
 </html>

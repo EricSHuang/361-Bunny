@@ -20,16 +20,18 @@ var clickedX, clickedY;
 
 
 //lighting
-var lightPosition = vec4(-5.0, -5.0, -5.0, 0.0 );
+var startinglightPosition = vec4(5.0, 5.0, 0.0, 0.0 );
 var lightAmbient = vec4(0.2, 0.2, 0.2, 1.0 );
 var lightDiffuse = vec4( 1.0, 1.0, 1.0, 1.0 );
 var lightSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
 
-var materialAmbient = vec4( 1.0, 0.0, 1.0, 1.0 );
-var materialDiffuse = vec4( 1.0, 0.8, 0.0, 1.0 );
-var materialSpecular = vec4( 1.0, 1.0, 1.0, 1.0 );
-var materialShininess = 20.0;
+var materialAmbient = vec4( 1.0, 1.0, 0.09, 1.0 );
+var materialDiffuse = vec4( 1.0, 1.0, 0.09, 1.0 );
+var materialSpecular = vec4( 0, 0, 0.0, 1.0 );
+var materialShininess = 100.0;
 
+var lightTheta = 0; //used in rotating point light source
+var pointLightMovement = true;
 
 window.onload = function init(){
     canvas = document.getElementById("gl-canvas");
@@ -49,21 +51,6 @@ window.onload = function init(){
     //Shaders and attribute buffers
     program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
-/*
-    //step abc stuff
-    var cBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW);
-
-    var vColor = gl.getAttribLocation(program, "vColor");
-    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vColor);
-*/
-
-    //lighting v3
-    var ambientProduct = mult(lightAmbient, materialAmbient);
-    var diffuseProduct = mult(lightDiffuse, materialDiffuse);
-    var specularProduct = mult(lightSpecular, materialSpecular);
 
     var nBuffer = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, nBuffer);
@@ -73,8 +60,6 @@ window.onload = function init(){
     gl.vertexAttribPointer( vNormal, 4, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vNormal);
 
-
-
     var vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW);
@@ -83,45 +68,23 @@ window.onload = function init(){
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
-/*
-    //mozilla lighting
-    var aNormalLocation = gl.getAttribLocation(program, "aNormal");
-    gl.bindBuffer(gl.ARRAY_BUFFER, aNormalLocation);
-    gl.vertexAttribPointer(aNormalLocation, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(aNormalLocation);
-*/
-
     modelViewLocation = gl.getUniformLocation(program, "modelViewMatrix");
     projectionLocation = gl.getUniformLocation(program, "projectionMatrix");
     normalMatrixLocation = gl.getUniformLocation(program, "normalMatrix");
 
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "ambientProduct"),flatten(ambientProduct) );
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "diffuseProduct"),flatten(diffuseProduct) );
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "specularProduct"),flatten(specularProduct) );
-    gl.uniform4fv( gl.getUniformLocation(program,
-       "lightPosition"),flatten(lightPosition) );
-    gl.uniform1f( gl.getUniformLocation(program,
-       "shininess"),materialShininess );
+    //lighting
+    var ambientProduct = mult(lightAmbient, materialAmbient);
+    var diffuseProduct = mult(lightDiffuse, materialDiffuse);
+    var specularProduct = mult(lightSpecular, materialSpecular);
 
-
-/*
-    //mozilla lighting
-    normalMatrixLocation = gl.getUniformLocation(program, "uNormalMatrix");
-    const normalMatrix = mat4();
-    mat4.invert(normalMatrix, modelViewMatrix);
-    mat4.transpose(normalMatrix, normalMatrix);
-
-    //lighting 2
-    var normalBuffer = gl.createBuffer();
-    var normals = bunnyNormals();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(normalBuffer);
-*/
+    var ambientLocation = gl.getUniformLocation(program, "ambientProduct");
+    gl.uniform4fv(ambientLocation, flatten(ambientProduct));
+    var diffuseLocation = gl.getUniformLocation(program, "diffuseProduct");
+    gl.uniform4fv(diffuseLocation, flatten(diffuseProduct));
+    var specularLocation = gl.getUniformLocation(program, "specularProduct");
+    gl.uniform4fv(specularLocation, flatten(specularProduct));
+    var shininessLocation = gl.getUniformLocation(program, "shininess");
+    gl.uniform1f(shininessLocation, materialShininess);
 
     //Translation and Rotation Event Listeners
     //Mouse movement Event listeners
@@ -129,7 +92,6 @@ window.onload = function init(){
         clickedX = event.clientX;
         clickedY = event.clientY;
         //console.log(clickedX + " , " + clickedY);
-        document.getElementById("mouseClickStatus").innerHTML = "clicked!";
 
         var identity = identity4();
         var mouseButton = event.which;
@@ -177,11 +139,27 @@ function render() {
     var theta = 0.0;
     var phi = 0.0;
     var fovy = 45.0;
+
+    if (pointLightMovement){
+        lightTheta += 0.02;
+    }
+
+    var lightPosition = [0, 0, 0, 1];
+    lightPosition[0] = startinglightPosition[0] * Math.cos(lightTheta) +
+                    startinglightPosition[2] * Math.sin(lightTheta);
+    lightPosition[1] = -startinglightPosition[1];
+    lightPosition[2] = startinglightPosition[0] * Math.sin(lightTheta) +
+                    startinglightPosition[2] * Math.cos(lightTheta);
+
 /*
-    eye = vec3(radius * Math.sin(theta) * Math.cos(phi),
-                radius * Math.sin(theta) * Math.sin(phi),
-                radius * Math.cos(theta));
+    //light moving formula for the spotlight later on ****KEEP IT****
+    var lightPosition = [0, 0, 0, 1];
+    lightPosition[0] = Math.cos(lightTheta) * startinglightPosition[0];
+    lightPosition[1] = -startinglightPosition[1];
+    lightPosition[2] = startinglightPosition[2];
+    //console.log(lightPosition);
 */
+
     eye = vec3(0, 0, 10);
     modelViewMatrix = lookAt(eye, at, up);
     projectionMatrix = perspective(fovy, aspect, near, far);
@@ -193,7 +171,7 @@ function render() {
         modelViewMatrix = mult(modelViewMatrix, rotationStack[i]);
     }
 
-    //lighting v3
+    //lighting
     normalMatrix = [
         vec3(modelViewMatrix[0][0], modelViewMatrix[0][1], modelViewMatrix[0][2]),
         vec3(modelViewMatrix[1][0], modelViewMatrix[1][1], modelViewMatrix[1][2]),
@@ -202,8 +180,7 @@ function render() {
     gl.uniformMatrix4fv(modelViewLocation, false, flatten(modelViewMatrix) );
     gl.uniformMatrix4fv(projectionLocation, false, flatten(projectionMatrix) );
     gl.uniformMatrix3fv(normalMatrixLocation, false, flatten(normalMatrix) );
-
-
+    gl.uniform4fv( gl.getUniformLocation(program, "lightPosition"),flatten(lightPosition) );
 
 
 
@@ -215,10 +192,10 @@ function drawBunny(){
     var vertices = get_vertices();
     var faces = get_faces();
     numFaces = faces.length;
-    console.log(numFaces);
-    var tempBlueColor = [0.0, 0.0, 1.0, 1.0];
+    //console.log(numFaces);
 
     for(var i = 0; i < numFaces; i++){
+        //vertices/face
         var v1Index = faces[i][0] - 1;
         var v2Index = faces[i][1] - 1;
         var v3Index = faces[i][2] - 1;
@@ -229,54 +206,19 @@ function drawBunny(){
         points.push(v2);
         points.push(v3);
 
-        var t1 = subtract(v2, v1);
-        var t2 = subtract(v3, v1);
-        var normal = normalize(cross(t2, t1));
+        //normal
+        var u = subtract(v2, v1);
+        var w = subtract(v3, v1);
+        var normal = normalize(cross(w, u));
         normal = vec4(normal);
         normal[3] = 0.0;
         normals.push(normal);
         normals.push(normal);
         normals.push(normal);
     }
-    console.log(points.length);
-    console.log(normals.length);
+    //console.log(points.length);
+    //console.log(normals.length);
 }
-
-/*
-//normals now calcualted within drawBunny()
-function bunnyNormals(){
-    var vertices = get_vertices();
-    var faces = get_faces();
-    numFaces = faces.length;
-
-    var normals = [];
-    for(var i = 0; i < numFaces; i++){
-        var v1Index = faces[i][0] - 1;
-        var v2Index = faces[i][1] - 1;
-        var v3Index = faces[i][2] - 1;
-
-        //V = V2 - V1
-        var v = [
-            vertices[v2Index][0] - vertices[v1Index][0],
-            vertices[v2Index][1] - vertices[v1Index][1],
-            vertices[v2Index][2] - vertices[v1Index][2]
-        ];
-        //W = V3 - V1
-        var w = [
-            vertices[v3Index][0] - vertices[v1Index][0],
-            vertices[v3Index][1] - vertices[v1Index][1],
-            vertices[v3Index][2] - vertices[v1Index][2]
-        ];
-
-        var normalX = (v[1] * w[2]) - (v[2] * w[1]);
-        var normalY = (v[2] * w[0]) - (v[0] * w[2]);
-        var normalZ = (v[0] * w[1]) - (v[1] * w[0]);
-        normals.push(vec3(normalX, normalY, normalZ));
-    }
-    console.log(normals.length);
-    return normals;
-}
-*/
 
 function XYTranslationMatrix(event){
     var minimizer = 0.01;   //slows down translation speed to suit mouse movement
@@ -323,6 +265,10 @@ function keyCommands(key){
         case 40:    //down arrow key: translate bunny towards camera on z-axis
             var translateMatrix = translate(0.0, 0.0, 1.0);
             translationStack.push(translateMatrix);
+            break;
+
+        case 80:    //"p" starts/stops the point light rotation
+            pointLightMovement = !pointLightMovement;
             break;
 
         case 82:    //"r" resets the bunny's location and orientation
