@@ -9,7 +9,7 @@ Renders the Stanford Bunny under a rotating point light source.
 **P** stops the rotation of the light source.
 
 ## Sample Outputs
-![Sample 1](https://github.com/EricSHuang/361-Bunny/blob/master/bunny2.png) <br>
+![Sample 1](https://github.com/EricSHuang/361-Bunny/blob/master/bunny2.png)
 ![Sample 2](https://github.com/EricSHuang/361-Bunny/blob/master/bunny.png)
 
 ## Context
