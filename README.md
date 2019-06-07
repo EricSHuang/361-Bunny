@@ -8,8 +8,9 @@ Renders the Stanford Bunny under a rotating point light source.
 **R** resets the bunny to its default position. <br>
 **P** stops the rotation of the light source.
 
-## Sample Output
-![Sample Output]
+## Sample Outputs
+![Sample 1](https://github.com/EricSHuang/361-Bunny/blob/master/bunny2.png) <br>
+![Sample 2](https://github.com/EricSHuang/361-Bunny/blob/master/bunny.png)
 
 ## Context
 Completed as an assignment for CMPT361: Introduction to Computer Graphics
